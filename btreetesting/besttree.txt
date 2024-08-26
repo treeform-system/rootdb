@@ -1,0 +1,382 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"log"
+	"math/rand/v2"
+	"os"
+)
+
+const (
+	ORDER    = 128 //order*2=256 which is how many fit in a PAGESIZE block 4096/16(16 = 2 int64)
+	PAGESIZE = 4096
+	MAXINT64 = (1 << 63) - 1
+	MAXAMT   = ORDER*2 + 1
+)
+
+type tree struct {
+	root node
+}
+
+type node interface {
+	isLeaf() bool
+	size() int //represent how many values in node
+	addValue(int)
+	setParent(node)
+}
+
+/*
+Creates file if not exist, otherwise opens to read
+File combination of the directory and concatenation of "id"+"<tablename>"+"<columname>"
+returns valid tree with at least one node
+Tree contains close function must be called at end to sync
+error if any part of tree doesn't work
+*/
+// func initializeTree(dir, tablename, columname string) (*Tree, error) {
+// 	filename := filepath.Join(dir, "id"+tablename+columname+".kdb")
+// 	if f, err := os.OpenFile(filename, os.O_WRONLY, 0666); err != nil {
+// 		f, _ = os.Create(filename)
+// 		var newpage [PAGESIZE]byte
+// 		newpage[0] = 0
+// 		newpage[1] = 0
+// 		f.Write(newpage[:])
+// 		f.Close()
+// 	} else {
+// 		f.Close()
+// 	}
+
+// 	lb := new(LeafBuffer)
+// 	root, err := lb.initializeLeafBuffer(filename)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+//		return &Tree{root: root, leafBuf: lb}, nil
+//	}
+func newTree() *tree {
+	mytree := new(tree)
+	newnode := new(leafint64Node)
+	newnode.nums = 0
+	mytree.root = newnode
+
+	return mytree
+}
+
+func (t *tree) findKeyValue(key int64) (int64, bool) {
+	n := t.findLeaf(t.root, key)
+	return t.findValue(n, key)
+}
+
+func (t *tree) findLeaf(thisNode node, key int64) node {
+	if thisNode == nil {
+		return nil
+	}
+	if thisNode.isLeaf() {
+		return thisNode
+	}
+	//otherwise its a branch
+	branchnode := thisNode.(*branchNode)
+	index := 0
+	for i := range branchnode.keys {
+		if key < branchnode.keys[i] || branchnode.keys[i] == 0 { //i >= (ORDER*2+1-thisNode.nums) (this is wrong meaning at some point i messed up setting the nums field in a node)
+			return t.findLeaf(branchnode.pointers[index], key)
+		}
+		index++
+	}
+	return t.findLeaf(branchnode.pointers[index], key)
+}
+
+func (t *tree) findValue(leafnode node, key int64) (int64, bool) {
+	if leafnode == nil || !leafnode.isLeaf() {
+		return 0, false
+	}
+	thisLeaf := leafnode.(*leafint64Node)
+	for i := range thisLeaf.keys {
+		if key == thisLeaf.keys[i] {
+			return thisLeaf.values[i], true
+		}
+	}
+	return 0, false
+}
+
+func (t *tree) insertNode(key int64, value int64) error {
+	leaf := t.findLeaf(t.root, key)
+
+	if leaf == nil {
+		return errors.New("unable to insert node")
+	}
+	if _, ok := t.findValue(leaf, key); ok {
+		return errors.New("key already exists")
+	}
+	if leaf.size() == MAXAMT-1 {
+		//split node into two
+		anotherLeaf := new(leafint64Node)
+		thisLeaf := leaf.(*leafint64Node)
+
+		InsertKVLeafNode(leaf, key, value)
+
+		count := 0
+		for i := ORDER; i < ORDER*2+1; i++ { //modify to change distribution on split
+			anotherLeaf.keys[i-ORDER] = thisLeaf.keys[i]
+			anotherLeaf.values[i-ORDER] = thisLeaf.values[i]
+			thisLeaf.keys[i] = 0
+			thisLeaf.values[i] = 0
+			count++
+		}
+
+		anotherLeaf.next = thisLeaf.next
+		thisLeaf.next = anotherLeaf
+		thisLeaf.addValue(-count)
+		anotherLeaf.addValue(count)
+		anotherLeaf.parent = thisLeaf.parent
+		//t.leafBuf.writeNewPage(&leaf.keys, &leaf.values, &anotherLeaf.keys, &anotherLeaf.values, leaf.meta_pageid)
+		//anotherLeaf.meta_pageid = t.leafBuf.lastPageId
+		t.propogateBranchKeyUp(thisLeaf.parent, anotherLeaf.keys[0], leaf, anotherLeaf) //propogate key upwards
+	} else {
+		//fmt.Println("inserting node leaf")
+		InsertKVLeafNode(leaf, key, value)
+		//t.leafBuf.writeLeafToBuffer(leaf)
+	}
+
+	return nil
+}
+
+func (t *tree) propogateBranchKeyUp(thisParent node, key int64, left, right node) {
+	if thisParent == nil {
+		topBranch := new(branchNode)
+		topBranch.keys[0] = key
+		topBranch.pointers[0] = left
+		topBranch.pointers[1] = right
+		topBranch.nums = 1
+		t.root = topBranch
+		left.setParent(t.root)
+		right.setParent(t.root)
+		return
+	}
+
+	if thisParent.size() == MAXAMT-1 {
+		anotherBranch := new(branchNode)
+
+		InsertBranchKCNode(thisParent, key, left, right)
+
+		parentBranch := thisParent.(*branchNode)
+
+		middleKey := parentBranch.keys[ORDER]
+
+		for i := ORDER + 1; i < ORDER*2+1; i++ {
+			anotherBranch.keys[i-ORDER-1] = parentBranch.keys[i]
+			parentBranch.keys[i] = 0
+		}
+		for i := ORDER + 1; i < ORDER*2+2; i++ {
+			anotherBranch.pointers[i-ORDER-1] = parentBranch.pointers[i]
+			parentBranch.pointers[i].setParent(anotherBranch)
+			parentBranch.pointers[i] = nil
+		}
+		anotherBranch.parent = parentBranch.parent
+		anotherBranch.nums = ORDER
+		parentBranch.nums = ORDER
+
+		t.propogateBranchKeyUp(parentBranch.parent, middleKey, parentBranch, anotherBranch)
+	} else {
+		InsertBranchKCNode(thisParent, key, left, right)
+	}
+}
+
+func (t *tree) findFirstLeaf() *leafint64Node {
+	currentLeaf := t.root
+	for currentLeaf != nil && !currentLeaf.isLeaf() {
+		currentBranch := currentLeaf.(*branchNode)
+		currentLeaf = currentBranch.pointers[0]
+	}
+	if currentLeaf == nil {
+		return nil
+	}
+	return currentLeaf.(*leafint64Node)
+}
+
+type branchNode struct {
+	parent   node
+	keys     [ORDER*2 + 1]int64
+	pointers [ORDER*2 + 2]node
+	nums     int //less than max keys
+}
+
+func (b *branchNode) isLeaf() bool {
+	return false
+}
+
+func (b *branchNode) size() int {
+	return b.nums
+}
+
+func (b *branchNode) addValue(delta int) {
+	b.nums += delta
+}
+
+func (b *branchNode) setParent(parent node) {
+	b.parent = parent
+}
+
+func (b *branchNode) String() string {
+	return fmt.Sprintf("(%d)", b.nums)
+}
+
+type leafint64Node struct {
+	nums   int                //less than max keys
+	keys   [ORDER*2 + 1]int64 //zero represents unset key
+	values [ORDER*2 + 1]int64
+	next   *leafint64Node
+	parent node
+}
+
+func (l *leafint64Node) isLeaf() bool {
+	return true
+}
+
+func (l *leafint64Node) size() int {
+	return l.nums
+}
+
+func (l *leafint64Node) addValue(delta int) {
+	l.nums += delta
+}
+
+func (l *leafint64Node) setParent(parent node) {
+	l.parent = parent
+}
+
+func (l *leafint64Node) String() string {
+	return fmt.Sprintf("(%d)", l.nums)
+}
+
+//
+// # General Functions
+//
+
+func InsertKVLeafNode(node node, key int64, value int64) {
+	leafNode, ok := node.(*leafint64Node)
+	if !ok {
+		panic("node interface set to leafnode untrue (InsertKVLeafNode)")
+	}
+	index := 0
+	for i := range leafNode.keys {
+		if key < leafNode.keys[i] || leafNode.keys[i] == 0 {
+			break
+		}
+		index++
+	}
+	for i := ORDER * 2; i > index; i-- {
+		leafNode.keys[i] = leafNode.keys[i-1]
+		leafNode.values[i] = leafNode.values[i-1]
+	}
+	leafNode.keys[index] = key
+	leafNode.values[index] = value
+	leafNode.nums++
+
+	// fmt.Printf("nums: %d\nadding key %d to leaf\n", node.nums, key)
+	// for i := range node.keys {
+	// 	fmt.Printf("%d - %s\n", node.keys[i], node.values[i])
+	// }
+	// fmt.Println("done adding keys to leaf")
+}
+
+func InsertBranchKCNode(node node, key int64, left, right node) {
+	branchNode := node.(*branchNode)
+	index := 0
+	for i := range branchNode.keys {
+		if key < branchNode.keys[i] || branchNode.keys[i] == 0 {
+			break
+		}
+		index++
+	}
+	for i := ORDER * 2; i > index; i-- {
+		branchNode.keys[i] = branchNode.keys[i-1]
+		branchNode.pointers[i+1] = branchNode.pointers[i]
+	}
+
+	branchNode.pointers[index] = left
+	branchNode.pointers[index+1] = right
+	branchNode.keys[index] = key
+
+	branchNode.nums++
+}
+
+/*
+uses pointer to static array since that avoids copying the array can be called either by
+setting parameter to same type with pointer to it or casting parameter to slice and calling function with staticArray[:]
+since also creates temp slice data type that uses pointer.
+*/
+type leafBuffer struct {
+	indexFile     *os.File
+	metapage      [PAGESIZE]byte
+	lastPageId    uint16
+	pageArray     [2047]uint16
+	numMetaPages  byte
+	bufferedPages []*Node
+}
+
+func main() {
+	mytree := newTree()
+	// newnode, ok := mytree.root.(*branchNode)
+	// fmt.Println(newnode, ok)
+
+	// mytree.root = new(leafint64Node)
+
+	// fmt.Println(mytree.root.size())
+	// fmt.Println(mytree.root.size())
+	// fmt.Println(mytree.root.size())
+
+	r1 := rand.New(rand.NewPCG(42, 1024))
+	for i := int64(1); i < 200; i++ {
+		err := mytree.insertNode(i, r1.Int64N(100))
+		if err != nil {
+			log.Fatal(i, err)
+		}
+	}
+	err := mytree.insertNode(202, 256)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	val, ok := mytree.findKeyValue(202)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 202, val)
+
+	val, ok = mytree.findKeyValue(201)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 201, val)
+
+	err = mytree.insertNode(17, 256)
+	if err == nil {
+		log.Fatal("number passed through nonunique")
+	} else {
+		fmt.Println("correctly blocks duplicate")
+	}
+
+	for i := int64(203); i < 8000; i++ {
+		err := mytree.insertNode(i, r1.Int64N(100))
+		if err != nil {
+			log.Fatal(i, err)
+		}
+	}
+
+	val, ok = mytree.findKeyValue(7811)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7811, val) //23
+
+	val, ok = mytree.findKeyValue(7992)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7992, val) //2
+
+	val, ok = mytree.findKeyValue(7999)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7999, val) //44
+
+	val, ok = mytree.findKeyValue(7451)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7451, val) //31
+
+	val, ok = mytree.findKeyValue(7555)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7555, val) //8
+
+	val, ok = mytree.findKeyValue(9000)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 9000, val) //false
+
+	val, ok = mytree.findKeyValue(1000)
+	fmt.Printf("%t -ok; %d - val: %d\n", ok, 1000, val) //75
+}
