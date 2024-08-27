@@ -21,6 +21,8 @@ Currently in development so only supports a subset of ANSI SQL, primarily the ba
 * Create
 
 Some features still in development:
+- [ ] WAL manager
+- [ ] Fault tolerance and durability
 - [ ] B+Tree indexing
 - [ ] ACID compliance
 - [ ] Transaction Manager

@@ -101,6 +101,7 @@ func (b *Backend) CreateTable(q Query) error {
 		}
 	}
 
+	totalRowSize := 0
 	for i, construct := range q.TableConstruction.fieldsWTypes {
 		newColumn := Column{}
 		if !(len(construct[0]) > 0 && len(construct[0]) < 255) {
@@ -147,7 +148,12 @@ func (b *Backend) CreateTable(q Query) error {
 		default:
 			return errors.ErrUnsupported
 		}
+		totalRowSize += int(newColumn.columnSize)
 		newtable.Columns[i] = newColumn
+	}
+
+	if totalRowSize >= 4070 {
+		return errors.New("row size for this table exceeds max row size")
 	}
 
 	f, err := os.Create(filepath.Join(b.dir, fmt.Sprintf("%s.db", newtable.Name)))
