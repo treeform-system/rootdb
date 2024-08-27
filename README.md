@@ -10,7 +10,7 @@ RootDB is an embedded persistent relational database. Similar to sqlite, RootDB 
 
 pacakge can be installed with go get (go 1.22 or higher recommended)
 ```
-go get github.com/kd993595/rootdb
+go get github.com/treeform-system/rootdb
 ```
 
 ## Features
