@@ -101,5 +101,7 @@ func main() {
 }
 ```
 
+for further usage read [sql specs](/testing/sqlSpecs.md)
+
 ## License
 [license](./LICENSE)
