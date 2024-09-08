@@ -1,7 +1,5 @@
 # RootDB
 
-![Logo](https://github.com/treeform-system/rootdb/blob/main/logo.png "RootDB logo")
-
 ## Description
 
 RootDB is an embedded persistent relational database. Similar to sqlite, RootDB is meant to be small and easy to use since it conforms to the built-in database/sql interface. Uses SQL language to interact with database through the database/sql interface. Written in pure Golang and no external dependencies (only those used in testing are imported) its easy to integrate similar to how you would with any other databases (ie. Mysql, sqlite etc.)
@@ -41,24 +39,24 @@ import (
 	_ "github.com/treeform-system/rootdb"
 )
 
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func main() {
 	fmt.Printf("Drivers=%#v\n", sql.Drivers())
 
 	db, err := sql.Open("rootdb", "example")
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
 	err = db.Ping()
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_, err = db.Query("CREATE TABLE MyTable10 (column1 int Primary Key, name char(10),column30 bool, column400 float, column5 int);")
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_, err = db.Query(`INSERT INTO "MyTable10" (column1,name,column30,column400,column5) VALUES
 	 (1,'somecharss', true,1.23,2),
@@ -66,10 +64,14 @@ func main() {
 	 (3,'Kevin', true,'.567',2),
 	 (4,'tim', false,.678,2),
 	 (5,'stringsss', true,5.36,3);`)
-	check(err)	
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	rows, err := db.Query("SELECT * FROM MyTable10;")
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("Select Query passed")
 
 	for rows.Next() {
@@ -85,7 +87,9 @@ func main() {
 	}
 
 	rows, err = db.Query("SELECT * FROM MyTable10 WHERE column30 = true AND column1 > 1 AND column5 > 2;")
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rows.Next() {
 		var i int
 		var n string

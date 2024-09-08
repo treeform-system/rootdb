@@ -1,3 +1,22 @@
+//                                                                                                                         
+// RRRRRRRRRRRRRRRRR                                              tttt               DDDDDDDDDDDDD      BBBBBBBBBBBBBBBBB   
+// R::::::::::::::::R                                          ttt:::t               D::::::::::::DDD   B::::::::::::::::B  
+// R::::::RRRRRR:::::R                                         t:::::t               D:::::::::::::::DD B::::::BBBBBB:::::B 
+// RR:::::R     R:::::R                                        t:::::t               DDD:::::DDDDD:::::DBB:::::B     B:::::B
+//   R::::R     R:::::R   ooooooooooo      ooooooooooo   ttttttt:::::ttttttt           D:::::D    D:::::D B::::B     B:::::B
+//   R::::R     R:::::R oo:::::::::::oo  oo:::::::::::oo t:::::::::::::::::t           D:::::D     D:::::DB::::B     B:::::B
+//   R::::RRRRRR:::::R o:::::::::::::::oo:::::::::::::::ot:::::::::::::::::t           D:::::D     D:::::DB::::BBBBBB:::::B 
+//   R:::::::::::::RR  o:::::ooooo:::::oo:::::ooooo:::::otttttt:::::::tttttt           D:::::D     D:::::DB:::::::::::::BB  
+//   R::::RRRRRR:::::R o::::o     o::::oo::::o     o::::o      t:::::t                 D:::::D     D:::::DB::::BBBBBB:::::B 
+//   R::::R     R:::::Ro::::o     o::::oo::::o     o::::o      t:::::t                 D:::::D     D:::::DB::::B     B:::::B
+//   R::::R     R:::::Ro::::o     o::::oo::::o     o::::o      t:::::t                 D:::::D     D:::::DB::::B     B:::::B
+//   R::::R     R:::::Ro::::o     o::::oo::::o     o::::o      t:::::t    tttttt       D:::::D    D:::::D B::::B     B:::::B
+// RR:::::R     R:::::Ro:::::ooooo:::::oo:::::ooooo:::::o      t::::::tttt:::::t     DDD:::::DDDDD:::::DBB:::::BBBBBB::::::B
+// R::::::R     R:::::Ro:::::::::::::::oo:::::::::::::::o      tt::::::::::::::t     D:::::::::::::::DD B:::::::::::::::::B 
+// R::::::R     R:::::R oo:::::::::::oo  oo:::::::::::oo         tt:::::::::::tt     D::::::::::::DDD   B::::::::::::::::B  
+// RRRRRRRR     RRRRRRR   ooooooooooo      ooooooooooo             ttttttttttt       DDDDDDDDDDDDD      BBBBBBBBBBBBBBBBB   
+//                                                                                                                          
+                                                                                                              
 package databasego
 
 import (
