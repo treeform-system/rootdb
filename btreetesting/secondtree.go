@@ -1,11 +1,9 @@
-package main
+package btreetesting
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
-	"math/rand/v2"
 	"os"
 	"path/filepath"
 )
@@ -547,63 +545,63 @@ func (l *leafBuffer) closeLeafBuffer() {
 	l.indexFile.Close()
 }
 
-func main() {
-	mytree, err := initializeTree("./", "mytable", "mycolumn")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer mytree.closeIndex()
+// func main() {
+// 	mytree, err := initializeTree("./", "mytable", "mycolumn")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer mytree.closeIndex()
 
-	r1 := rand.New(rand.NewPCG(42, 1024))
-	for i := int64(1); i < 200; i++ {
-		err := mytree.insertNode(i, r1.Int64N(100))
-		if err != nil {
-			log.Fatal(i, err)
-		}
-	}
-	err = mytree.insertNode(202, 256)
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	r1 := rand.New(rand.NewPCG(42, 1024))
+// 	for i := int64(1); i < 200; i++ {
+// 		err := mytree.insertNode(i, r1.Int64N(100))
+// 		if err != nil {
+// 			log.Fatal(i, err)
+// 		}
+// 	}
+// 	err = mytree.insertNode(202, 256)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	val, ok := mytree.findKeyValue(202)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 202, val)
+// 	val, ok := mytree.findKeyValue(202)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 202, val)
 
-	val, ok = mytree.findKeyValue(201)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 201, val) //false
+// 	val, ok = mytree.findKeyValue(201)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 201, val) //false
 
-	err = mytree.insertNode(17, 256)
-	if err == nil {
-		log.Fatal("number passed through nonunique")
-	} else {
-		fmt.Println("correctly blocks duplicate")
-	}
+// 	err = mytree.insertNode(17, 256)
+// 	if err == nil {
+// 		log.Fatal("number passed through nonunique")
+// 	} else {
+// 		fmt.Println("correctly blocks duplicate")
+// 	}
 
-	for i := int64(203); i < 8000; i++ {
-		err := mytree.insertNode(i, r1.Int64N(100))
-		if err != nil {
-			log.Fatal(i, err)
-		}
-	}
+// 	for i := int64(203); i < 8000; i++ {
+// 		err := mytree.insertNode(i, r1.Int64N(100))
+// 		if err != nil {
+// 			log.Fatal(i, err)
+// 		}
+// 	}
 
-	val, ok = mytree.findKeyValue(7811)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7811, val) //23
+// 	val, ok = mytree.findKeyValue(7811)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7811, val) //23
 
-	val, ok = mytree.findKeyValue(7992)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7992, val) //2
+// 	val, ok = mytree.findKeyValue(7992)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7992, val) //2
 
-	val, ok = mytree.findKeyValue(7999)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7999, val) //44
+// 	val, ok = mytree.findKeyValue(7999)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7999, val) //44
 
-	val, ok = mytree.findKeyValue(7451)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7451, val) //31
+// 	val, ok = mytree.findKeyValue(7451)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7451, val) //31
 
-	val, ok = mytree.findKeyValue(7555)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7555, val) //8
+// 	val, ok = mytree.findKeyValue(7555)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 7555, val) //8
 
-	val, ok = mytree.findKeyValue(9000)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 9000, val) //false
+// 	val, ok = mytree.findKeyValue(9000)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 9000, val) //false
 
-	val, ok = mytree.findKeyValue(1000)
-	fmt.Printf("%t -ok; %d - val: %d\n", ok, 1000, val) //75
-}
+// 	val, ok = mytree.findKeyValue(1000)
+// 	fmt.Printf("%t -ok; %d - val: %d\n", ok, 1000, val) //75
+// }
