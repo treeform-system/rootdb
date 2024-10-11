@@ -13,6 +13,20 @@ var (
 	errorBadFind = errors.New("proper value not found")
 )
 
+//there are 3 functions only need to run the specific test for your type of tree
+// go test -run TestBPTree6432
+// go test -run TestBPTree3232
+// go test -run TestBPTreeUnique
+// modify the test to put your initialization
+
+func TestBPTreeDebugging(t *testing.T) {
+	var testTree BPTree3232 = nil
+	_ = testTree
+
+	t.Log("print some debugging")
+	t.Logf("formatted string %s for debugging", "for")
+}
+
 func TestBPTree6432(t *testing.T) {
 	// Initialize tree here
 
