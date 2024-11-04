@@ -156,7 +156,7 @@ func (l *LeafNode) naive_insert(key uint32, value uint32) error {
 	}
 
 	index := 0
-	for key > l.keys_arr[index] {
+	for index < l.num_keys && key > l.keys_arr[index] {
 		index++
 	}
 
@@ -247,7 +247,7 @@ func (b *BranchNode) naive_insert(key uint32, child *Node) error {
 	}
 
 	index := 0
-	for key > b.keys[index] {
+	for index < b.num_keys && key > b.keys[index] {
 		index++
 	}
 
