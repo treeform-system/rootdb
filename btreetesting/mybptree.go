@@ -25,11 +25,11 @@ func NewBPTree() *BPTree {
 }
 
 // given a branch node, returns the child node that should be traversed to to find the key
-func (n *BranchNode) traverse_toward(key uint32) *Node {
+func (n *BranchNode) traverse_toward(key uint32) Node {
 	return recurse_traverse_toward(n.keys[:n.num_keys], n.children[:n.num_keys+1], key)
 }
 
-func recurse_traverse_toward(keys []uint32, children []*Node, key uint32) *Node {
+func recurse_traverse_toward(keys []uint32, children []Node, key uint32) Node {
 	if len(keys) == 0 || len(children) != len(keys)+1 {
 		panic(fmt.Sprintf("invalid input: len(keys)=%d, len(children=%d)", len(keys), len(children)))
 	}
@@ -56,7 +56,7 @@ func recurse_traverse_toward(keys []uint32, children []*Node, key uint32) *Node 
 func (b *BPTree) findLeafNode(key uint32) *LeafNode {
 	curr_node := b.root
 	for !curr_node.isLeaf() {
-		curr_node = *(curr_node).(*BranchNode).traverse_toward(key)
+		curr_node = (curr_node).(*BranchNode).traverse_toward(key)
 	}
 	return curr_node.(*LeafNode)
 }
@@ -90,7 +90,7 @@ func (b *BPTree) findNode(key uint32) leafNode3232 {
 func (b *BPTree) firstLeafNode() leafNode3232 {
 	curr_node := b.root
 	for !curr_node.isLeaf() {
-		curr_node = *((curr_node).(*BranchNode)).children[0]
+		curr_node = (curr_node).(*BranchNode).children[0]
 	}
 	return curr_node.(*LeafNode)
 }
@@ -128,19 +128,16 @@ func (l *LeafNode) insert(key uint32, value uint32, tree *BPTree) error {
 	new.next_leaf = curr.next_leaf
 	curr.next_leaf = new
 
-	var new_cast Node = Node(new)
-	var curr_cast Node = Node(curr)
-
 	if curr.parent != nil {
 		new.parent = curr.parent
 
-		err := curr.parent.insert(new.keys_arr[0], &new_cast, tree)
+		err := curr.parent.insert(new.keys_arr[0], Node(new), tree)
 		if err != nil {
 			return err
 		}
 	} else {
 		// we're splitting the root
-		tree.split_root(&curr_cast, &new_cast)
+		tree.split_root(Node(curr), Node(new))
 	}
 
 	if key < curr.keys_arr[curr.num_keys-1] {
@@ -176,7 +173,7 @@ func (l *LeafNode) naive_insert(key uint32, value uint32) error {
 	return nil
 }
 
-func (b *BranchNode) insert(key uint32, child *Node, tree *BPTree) error {
+func (b *BranchNode) insert(key uint32, child Node, tree *BPTree) error {
 	if b.num_keys < MAX_KEYS_PER_NODE {
 		return b.naive_insert(key, child)
 	}
@@ -201,18 +198,15 @@ func (b *BranchNode) insert(key uint32, child *Node, tree *BPTree) error {
 	}
 	new.children[new.num_keys] = curr.children[MAX_CHILDREN_PER_BRANCH-1]
 
-	var new_cast Node = Node(new)
-	var curr_cast Node = Node(curr)
-
 	if b.parent != nil {
 		new.parent = b.parent
 
-		err := b.parent.insert(new.keys[0], &new_cast, tree)
+		err := b.parent.insert(new.keys[0], Node(new), tree)
 		if err != nil {
 			return err
 		}
 	} else {
-		tree.split_root(&curr_cast, &new_cast)
+		tree.split_root(Node(curr), Node(new))
 	}
 
 	if key < curr.keys[curr.num_keys-1] {
@@ -222,26 +216,26 @@ func (b *BranchNode) insert(key uint32, child *Node, tree *BPTree) error {
 	}
 }
 
-func (b *BPTree) split_root(left_child *Node, right_child *Node) {
+func (b *BPTree) split_root(left_child Node, right_child Node) {
 	new_root := &BranchNode{}
 
 	new_root.num_keys = 1
-	if (*right_child).isLeaf() {
-		new_root.keys[0] = (*right_child).(*LeafNode).keys_arr[0]
+	if right_child.isLeaf() {
+		new_root.keys[0] = right_child.(*LeafNode).keys_arr[0]
 	} else {
-		new_root.keys[0] = (*right_child).(*BranchNode).keys[0]
+		new_root.keys[0] = right_child.(*BranchNode).keys[0]
 	}
 
 	new_root.children[0] = left_child
 	new_root.children[1] = right_child
 
-	(*left_child).setParent(new_root)
-	(*right_child).setParent(new_root)
+	left_child.setParent(new_root)
+	right_child.setParent(new_root)
 
 	b.root = new_root
 }
 
-func (b *BranchNode) naive_insert(key uint32, child *Node) error {
+func (b *BranchNode) naive_insert(key uint32, child Node) error {
 	if b.num_keys >= MAX_KEYS_PER_NODE {
 		return errors.New("branch node is full")
 	}
@@ -294,7 +288,7 @@ type Node interface {
 type BranchNode struct {
 	parent   *BranchNode
 	keys     [MAX_KEYS_PER_NODE]uint32
-	children [MAX_CHILDREN_PER_BRANCH]*Node
+	children [MAX_CHILDREN_PER_BRANCH]Node
 	num_keys int
 }
 
