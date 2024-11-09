@@ -44,15 +44,10 @@ func (b *BPTree) findLeafNode(key uint32) *LeafNode {
 	return curr_node.(*LeafNode)
 }
 
-// returns the value associated with key, 0 if not found
-func (b *BPTree) get(key uint32) (uint32, bool) {
-	leaf_node := b.findLeafNode(key)
-	return leaf_node.get(key)
-}
-
 // returns the value associated for key, 0 if not found, all values should be >0 and keys must be >0
 func (b *BPTree) findKV(key uint32) uint32 {
-	val, present := b.get(key)
+	leaf_node := b.findLeafNode(key)
+	val, present := leaf_node.get(key)
 	if !present {
 		return 0
 	}
