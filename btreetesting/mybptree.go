@@ -355,15 +355,6 @@ func (l *LeafNode) nextLeaf() leafNode3232 {
 	return l.next_leaf
 }
 
-func (l *LeafNode) contains(key uint32) bool {
-	for i := 0; i < l.num_keys; i++ {
-		if l.keys_arr[i] == key {
-			return true
-		}
-	}
-	return false
-}
-
 // get returns the value associated with key, 0 if not found
 func (l *LeafNode) get(key uint32) (uint32, bool) {
 	if key < l.keys_arr[0] {
