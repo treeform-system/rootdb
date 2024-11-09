@@ -1,7 +1,5 @@
 package btreetesting
 
-import "fmt"
-
 import (
 	"encoding/binary"
 	"errors"
