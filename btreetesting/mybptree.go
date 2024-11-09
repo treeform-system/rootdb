@@ -26,27 +26,12 @@ func NewBPTree() *BPTree {
 
 // given a branch node, returns the child node that should be traversed to to find the key
 func (n *BranchNode) traverse_toward(key uint32) Node {
-	return recurse_traverse_toward(n.keys[:n.num_keys], n.children[:n.num_keys+1], key)
-}
-
-func recurse_traverse_toward(keys []uint32, children []Node, key uint32) Node {
-	if len(keys) == 0 || len(children) != len(keys)+1 {
-		panic(fmt.Sprintf("invalid input: len(keys)=%d, len(children=%d)", len(keys), len(children)))
-	}
-
-	if len(keys) == 1 {
-		if key < keys[0] {
-			return children[0]
-		} else {
-			return children[1]
+	for i := 0; i < n.num_keys; i++ {
+		if key < n.keys[i] {
+			return n.children[i]
 		}
 	}
-
-	if key < keys[0] {
-		return children[0]
-	}
-
-	return recurse_traverse_toward(keys[1:], children[1:], key)
+	return n.children[n.num_keys]
 }
 
 // find the leaf node that should contain the key if the key exists.
