@@ -84,9 +84,15 @@ func (b *BPTree) insertNodeKV(key uint32, value uint32) error {
 }
 
 func (l *LeafNode) insert(key uint32, value uint32, tree *BPTree) error {
-	if l.num_keys < MAX_KEYS_PER_NODE {
-		return l.naive_insert(key, value)
+	err := l.naive_insert(key, value)
+	if err != nil {
+		return err
 	}
+	if l.num_keys <= MAX_KEYS_PER_NODE {
+		return nil
+	}
+
+	// else there are 513 keys, need to split
 
 	// split the node
 	curr := l
@@ -122,18 +128,15 @@ func (l *LeafNode) insert(key uint32, value uint32, tree *BPTree) error {
 		tree.split_root(Node(curr), Node(new))
 	}
 
-	if key < curr.keys_arr[curr.num_keys-1] {
-		return curr.naive_insert(key, value)
-	} else {
-		return new.naive_insert(key, value)
-	}
+	return nil
 }
 
 func (l *LeafNode) naive_insert(key uint32, value uint32) error {
-	if l.num_keys >= MAX_KEYS_PER_NODE {
-		return errors.New("leaf node is full")
+	if l.num_keys > MAX_KEYS_PER_NODE {
+		panic("illegal state: leaf node has too many keys")
 	}
 
+	// TODO: bounds check elimination candidate?
 	index := 0
 	for index < l.num_keys && key > l.keys_arr[index] {
 		index++
@@ -156,8 +159,12 @@ func (l *LeafNode) naive_insert(key uint32, value uint32) error {
 }
 
 func (b *BranchNode) insert(key uint32, child Node, tree *BPTree) error {
-	if b.num_keys < MAX_KEYS_PER_NODE {
-		return b.naive_insert(key, child)
+	err := b.naive_insert(key, child)
+	if err != nil {
+		return err
+	}
+	if b.num_keys <= MAX_KEYS_PER_NODE {
+		return nil
 	}
 
 	// split the node
@@ -191,11 +198,7 @@ func (b *BranchNode) insert(key uint32, child Node, tree *BPTree) error {
 		tree.split_root(Node(curr), Node(new))
 	}
 
-	if key < curr.keys[curr.num_keys-1] {
-		return curr.naive_insert(key, child)
-	} else {
-		return new.naive_insert(key, child)
-	}
+	return nil
 }
 
 func (b *BPTree) split_root(left_child Node, right_child Node) {
@@ -218,10 +221,11 @@ func (b *BPTree) split_root(left_child Node, right_child Node) {
 }
 
 func (b *BranchNode) naive_insert(key uint32, child Node) error {
-	if b.num_keys >= MAX_KEYS_PER_NODE {
-		return errors.New("branch node is full")
+	if b.num_keys > MAX_KEYS_PER_NODE {
+		panic("illegal state: branch node has too many keys")
 	}
 
+	// TODO: bounds check elimination candidate?
 	index := 0
 	for index < b.num_keys && key > b.keys[index] {
 		index++
@@ -269,8 +273,8 @@ type Node interface {
 
 type BranchNode struct {
 	parent   *BranchNode
-	keys     [MAX_KEYS_PER_NODE]uint32
-	children [MAX_CHILDREN_PER_BRANCH]Node
+	keys     [MAX_KEYS_PER_NODE + 1]uint32
+	children [MAX_CHILDREN_PER_BRANCH + 1]Node
 	num_keys int
 }
 
@@ -292,8 +296,8 @@ func (b *BranchNode) addValue(val int) {
 
 type LeafNode struct {
 	parent     *BranchNode
-	keys_arr   [MAX_KEYS_PER_NODE]uint32
-	values_arr [MAX_VALUES_PER_LEAF]uint32
+	keys_arr   [MAX_KEYS_PER_NODE + 1]uint32
+	values_arr [MAX_VALUES_PER_LEAF + 1]uint32
 	next_leaf  *LeafNode
 	num_keys   int
 }
@@ -376,7 +380,7 @@ func (l *LeafNode) get(key uint32) (uint32, bool) {
 	if key < l.keys_arr[0] {
 		return 0, false
 	}
-	
+
 	for i := range l.keys_arr {
 		if i == l.num_keys {
 			break
