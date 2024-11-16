@@ -7,11 +7,12 @@ import (
 
 const (
 	BPTREE_ORDER            = 256
-	MAX_KEYS_PER_NODE       = 2*BPTREE_ORDER + 1
-	MAX_VALUES_PER_NODE     = MAX_KEYS_PER_NODE
-	MAX_CHILDREN_PER_BRANCH = 2*BPTREE_ORDER + 2
+	MAX_KEYS_PER_NODE       = 2 * BPTREE_ORDER
+	MAX_VALUES_PER_LEAF     = MAX_KEYS_PER_NODE
+	MAX_CHILDREN_PER_BRANCH = MAX_KEYS_PER_NODE + 1
 	KEY_SIZE                = 4
 	VALUE_SIZE              = 4
+	// PAGESIZE                = 4096
 )
 
 type BPTree struct {
@@ -24,12 +25,15 @@ func NewBPTree() *BPTree {
 
 // given a branch node, returns the child node that should be traversed to to find the key
 func (n *BranchNode) traverse_toward(key uint32) Node {
-	for i := 0; i < n.num_keys; i++ {
+	for i := range n.keys {
+		if i == n.num_keys {
+			return n.children[i]
+		}
 		if key < n.keys[i] {
 			return n.children[i]
 		}
 	}
-	return n.children[n.num_keys]
+	panic("unreachable")
 }
 
 // find the leaf node that should contain the key if the key exists.
@@ -243,15 +247,15 @@ func (b *BranchNode) naive_insert(key uint32, child Node) error {
 func (b *BPTree) overrideNodeKV(key uint32, value uint32) error {
 	leaf_node := b.findLeafNode(key)
 
-	for i := 0; i < leaf_node.num_keys; i++ {
-		if leaf_node.keys_arr[i] > key {
+	for i := range leaf_node.keys_arr {
+		if i == leaf_node.num_keys || leaf_node.keys_arr[i] > key {
 			break
-		} else if leaf_node.keys_arr[i] == key {
+		}
+		if leaf_node.keys_arr[i] == key {
 			leaf_node.values_arr[i] = value
 			return nil
-		} // else continue
+		}
 	}
-
 	return errors.New("key does not exist")
 }
 
@@ -289,7 +293,7 @@ func (b *BranchNode) addValue(val int) {
 type LeafNode struct {
 	parent     *BranchNode
 	keys_arr   [MAX_KEYS_PER_NODE]uint32
-	values_arr [MAX_VALUES_PER_NODE]uint32
+	values_arr [MAX_VALUES_PER_LEAF]uint32
 	next_leaf  *LeafNode
 	num_keys   int
 }
@@ -324,6 +328,9 @@ func (l *LeafNode) toBytes() []byte {
 	var buf [PAGESIZE]byte
 
 	for i := range l.keys_arr {
+		if i == l.num_keys {
+			break
+		}
 		binary.LittleEndian.PutUint32(buf[i:], l.keys_arr[i])
 		binary.LittleEndian.PutUint32(buf[i+PAGESIZE/2:], l.values_arr[i])
 	}
@@ -337,15 +344,16 @@ func (l *LeafNode) fromBytes(bytes []byte) error {
 	}
 
 	i := 0
-	for i = range bytes[:PAGESIZE/2] {
+	slice := bytes[:PAGESIZE/2]
+	for i = range slice {
 		if bytes[i] == 0 {
 			break
 		}
-		l.keys_arr[i] = binary.LittleEndian.Uint32(bytes[i:])
+		l.keys_arr[i] = binary.LittleEndian.Uint32(slice[i:])
 	}
 	l.num_keys = i
 
-	slice := bytes[PAGESIZE/2:]
+	slice = bytes[PAGESIZE/2:]
 	for i = range slice {
 		if slice[i] == 0 {
 			break
@@ -368,7 +376,11 @@ func (l *LeafNode) get(key uint32) (uint32, bool) {
 	if key < l.keys_arr[0] {
 		return 0, false
 	}
-	for i := 0; i < l.num_keys; i++ {
+	
+	for i := range l.keys_arr {
+		if i == l.num_keys {
+			break
+		}
 		if l.keys_arr[i] == key {
 			return l.values_arr[i], true
 		}
