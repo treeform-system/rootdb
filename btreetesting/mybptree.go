@@ -331,12 +331,9 @@ func (l *LeafNode) addValue(val int) {
 func (l *LeafNode) toBytes() []byte {
 	var buf [PAGESIZE]byte
 
-	for i := range l.keys_arr {
-		if i == l.num_keys {
-			break
-		}
-		binary.LittleEndian.PutUint32(buf[i:], l.keys_arr[i])
-		binary.LittleEndian.PutUint32(buf[i+PAGESIZE/2:], l.values_arr[i])
+	for i := 0; i < l.num_keys; i++ {
+		binary.LittleEndian.PutUint32(buf[4*i:], l.keys_arr[i])
+		binary.LittleEndian.PutUint32(buf[4*i+PAGESIZE/2:], l.values_arr[i])
 	}
 
 	return buf[:]
@@ -350,23 +347,16 @@ func (l *LeafNode) fromBytes(bytes []byte) error {
 	i := 0
 	slice := bytes[:PAGESIZE/2]
 	for i = range slice {
-		if bytes[i] == 0 {
+		index := i * 4
+		key := binary.LittleEndian.Uint32(slice[index:])
+		if key == 0x00_00_00_00 {
 			break
 		}
-		l.keys_arr[i] = binary.LittleEndian.Uint32(slice[i:])
+		value := binary.LittleEndian.Uint32(bytes[PAGESIZE/2+index:])
+		l.keys_arr[i] = key
+		l.values_arr[i] = value
 	}
 	l.num_keys = i
-
-	slice = bytes[PAGESIZE/2:]
-	for i = range slice {
-		if slice[i] == 0 {
-			break
-		}
-		l.values_arr[i] = binary.LittleEndian.Uint32(slice[i:])
-	}
-	if i != l.num_keys {
-		return errors.New("keys and values do not match")
-	}
 
 	return nil
 }
