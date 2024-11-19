@@ -271,6 +271,8 @@ type Node interface {
 	addValue(int)
 }
 
+// there's an extra slot for insertion before splitting. As soon as the node is
+// full it should be split.
 type BranchNode struct {
 	parent   *BranchNode
 	keys     [MAX_KEYS_PER_NODE + 1]uint32
@@ -294,6 +296,8 @@ func (b *BranchNode) addValue(val int) {
 	panic("unimplemented")
 }
 
+// there's an extra slot for insertion before splitting. As soon as the node is
+// full it should be split.
 type LeafNode struct {
 	parent     *BranchNode
 	keys_arr   [MAX_KEYS_PER_NODE + 1]uint32
