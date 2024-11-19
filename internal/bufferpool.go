@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 )
 
 /*
@@ -33,16 +32,16 @@ func NewBufferPoolManager(dir string) *bufferPoolManager {
 }
 
 func (bm *bufferPoolManager) newPool(tablename string, dir string, cols []Column) (int64, uint64) {
+	// replacer := InitialLRU()
+	replacer := InitialClock()
+
 	newPool := &bufferPool{
-		slots:   [MAXPOOLSIZE]*internalSlots{},
-		mxread:  &sync.Mutex{},
-		mxwrite: &sync.Mutex{},
-		pagemx:  &sync.RWMutex{},
-		lru:     InitialLRU(),
-		columns: cols,
-	}
-	for i := range newPool.lru.buffers {
-		newPool.lru.buffers[i].pos = i
+		slots:    [MAXPOOLSIZE]*internalSlots{},
+		mxread:   &sync.Mutex{},
+		mxwrite:  &sync.Mutex{},
+		pagemx:   &sync.RWMutex{},
+		replacer: &replacer,
+		columns:  cols,
 	}
 	for i := range newPool.slots {
 		newPool.slots[i] = new(internalSlots)
@@ -218,14 +217,14 @@ type bufferPool struct {
 
 	tablefileRead  *os.File
 	tablefileWrite *os.File
-	lru            LRU
+	replacer       PageReplacementAlgorithm
 	columns        []Column
 }
 
 // returns copy of cell rows
 func (b *bufferPool) FetchPage(pageid PageID) [][]Cell {
 	b.pagemx.RLock()
-	pagepos, ok := b.lru.findNum(pageid)
+	pagepos, ok := b.replacer.findPage(pageid)
 	if ok {
 		tmprows := b.slots[pagepos].returnClone()
 		b.pagemx.RUnlock()
@@ -235,10 +234,9 @@ func (b *bufferPool) FetchPage(pageid PageID) [][]Cell {
 	b.pagemx.RUnlock()
 	b.pagemx.Lock()
 	defer b.pagemx.Unlock()
-	pos, ok := b.lru.addNum(pageid)
+	pos, ok := b.replacer.addPage(pageid)
 	if !ok {
-		pos = b.lru.freeNum(pageid)
-		b.slots[pos] = nil //frees' the slice in that slot
+		pos = b.replacer.freePage(pageid)
 	}
 	err := b.AllocatePage(pageid, pos)
 	if err != nil {
@@ -249,7 +247,7 @@ func (b *bufferPool) FetchPage(pageid PageID) [][]Cell {
 
 func (b *bufferPool) rawFetchPage(pageid PageID) ([PAGESIZE]byte, error) {
 	b.pagemx.RLock()
-	pagepos, ok := b.lru.findNum(pageid)
+	pagepos, ok := b.replacer.findPage(pageid)
 	if ok {
 		b.pagemx.RUnlock()
 		return (b.slots[pagepos].buf), nil
@@ -258,9 +256,9 @@ func (b *bufferPool) rawFetchPage(pageid PageID) ([PAGESIZE]byte, error) {
 	b.pagemx.RUnlock()
 	b.pagemx.Lock()
 	defer b.pagemx.Unlock()
-	pos, ok := b.lru.addNum(pageid)
+	pos, ok := b.replacer.addPage(pageid)
 	if !ok {
-		pos = b.lru.freeNum(pageid)
+		pos = b.replacer.freePage(pageid)
 		b.slots[pos] = nil //frees' the slice in that slot
 	}
 	err := b.AllocatePage(pageid, pos)
@@ -348,7 +346,7 @@ func (b *bufferPool) AllocatePage(pageid PageID, pos int) error {
 }
 
 func (b *bufferPool) deletePage(num PageID) {
-	pos := b.lru.deleteNum(num)
+	pos := b.replacer.deletePage(num)
 	if pos == -1 {
 		return
 	}
@@ -374,9 +372,18 @@ func (is *internalSlots) returnClone() [][]Cell {
 	return cloneRows
 }
 
-type slotInfo struct {
-	num PageID
-	// isDirty bool //write code to write dirty
-	pos    int
-	access *atomic.Int32
+type PageReplacementAlgorithm interface {
+	// search for an unused slot in the bufferpool and use it to store `page`.
+	// If there are no unused slots, return (-1, false).
+	// If a slot is found, return the slot position and true.
+	addPage(page PageID) (int, bool)
+	// If the bufferpool has a slot that references `page`, mark it unused and
+	// return the slot position. Otherwise, return -1.
+	deletePage(page PageID) int
+	// If the bufferpool has a slot that references `page`, return its slot
+	// position and true. Otherwise, return -1 and false.
+	findPage(page PageID) (int, bool)
+	// Execute the page replacement to find a slot to replace with a new page.
+	// Return the slot position of the replaced page.
+	freePage(page PageID) int
 }

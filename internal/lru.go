@@ -2,61 +2,66 @@ package internal
 
 import "sync/atomic"
 
+type lruSlot struct {
+	page   PageID
+	access *atomic.Int32
+}
+
 type LRU struct {
-	buffers [MAXPOOLSIZE]slotInfo
+	buffers [MAXPOOLSIZE]lruSlot
 }
 
 func InitialLRU() LRU {
 	var lru LRU
 	for i := range lru.buffers {
-		lru.buffers[i].num = -1
+		lru.buffers[i].page = -1
 		lru.buffers[i].access = new(atomic.Int32)
 	}
 	return lru
 }
 
-func (l *LRU) addNum(num PageID) (int, bool) {
+func (l *LRU) addPage(page PageID) (int, bool) {
 	for i := range l.buffers {
-		if l.buffers[i].num == -1 {
-			l.buffers[i].num = num
+		if l.buffers[i].page == -1 {
+			l.buffers[i].page = page
 			for j := range l.buffers {
 				l.buffers[j].access.Add(-1) //change to +1 for MRU
 			}
 			l.buffers[i].access.Store(1)
-			return l.buffers[i].pos, true
+			return i, true
 		}
 	}
 
 	return -1, false
 }
 
-func (l *LRU) deleteNum(num PageID) int {
+func (l *LRU) deletePage(page PageID) int {
 	for i := range l.buffers {
-		if num == l.buffers[i].num {
-			l.buffers[i].num = -1
-			return l.buffers[i].pos
+		if page == l.buffers[i].page {
+			l.buffers[i].page = -1
+			return i
 		}
 	}
 	return -1
 }
 
-func (l *LRU) freeNum(num PageID) int {
+func (l *LRU) freePage(page PageID) int {
 	for {
 		for i := range l.buffers {
 			if l.buffers[i].access.Load() <= 0 {
-				l.buffers[i].num = num
-				return l.buffers[i].pos
+				l.buffers[i].page = page
+				return i
 			}
 			l.buffers[i].access.Add(-1)
 		}
 	}
 }
 
-func (l *LRU) findNum(num PageID) (int, bool) {
+func (l *LRU) findPage(page PageID) (int, bool) {
 	for i := range l.buffers {
-		if num == l.buffers[i].num {
+		if page == l.buffers[i].page {
 			l.buffers[i].access.Add(1)
-			return l.buffers[i].pos, true
+			return i, true
 		}
 	}
 	return -1, false
