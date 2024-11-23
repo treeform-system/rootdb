@@ -385,5 +385,7 @@ type PageReplacementAlgorithm interface {
 	findPage(page PageID) (int, bool)
 	// Execute the page replacement to find a slot to replace with a new page.
 	// Return the slot position of the replaced page.
+	//
+	// ! If the page is already in the bufferpool, return the slot position.
 	freePage(page PageID) int
 }

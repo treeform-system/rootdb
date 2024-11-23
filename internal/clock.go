@@ -41,10 +41,8 @@ func InitialClock() Clock {
 	return clock
 }
 
-// the bufferpool wants to delete a page number. It needs to know whether that
-// page number is in the bufferpool's array, and if so, where it is.
-//
-// If the page number is found, return the slot position. Otherwise, return -1.
+// If the bufferpool has a slot that references `page`, mark it unused and
+// return the slot position. Otherwise, return -1.
 func (c *Clock) deletePage(page PageID) int {
 	for i := range c.buffers {
 		buf := c.buffers[i]
@@ -56,9 +54,8 @@ func (c *Clock) deletePage(page PageID) int {
 	return -1
 }
 
-// tell the bufferpool which of its slot positions, if any, references the given
-// page number. If the page number is found, return the slot position and true.
-// Otherwise, return -1 and false.
+// If the bufferpool has a slot that references `page`, return its slot
+// position and true. Otherwise, return -1 and false.
 func (c *Clock) findPage(page PageID) (int, bool) {
 	for i := range c.buffers {
 		buf := c.buffers[i]
@@ -70,10 +67,10 @@ func (c *Clock) findPage(page PageID) (int, bool) {
 	return -1, false
 }
 
-// execute the clock algorithm until a slot is replaced. Return the position of
-// the slot of the page that was replaced in the bufferpool's array. This
-// position is now dirty and the bufferpool needs to populate it with the new
-// page.
+// Execute the page replacement to find a slot to replace with a new page.
+// Return the slot position of the replaced page.
+//
+// ! If the page is already in the bufferpool, return the slot position.
 func (c *Clock) freePage(page PageID) int {
 	for {
 		for i := range c.buffers {
@@ -87,6 +84,9 @@ func (c *Clock) freePage(page PageID) int {
 	}
 }
 
+// search for an unused slot in the bufferpool and use it to store `page`.
+// If there are no unused slots, return (-1, false).
+// If a slot is found, return the slot position and true.
 func (c *Clock) addPage(page PageID) (int, bool) {
 	for i := range c.buffers {
 		buf := c.buffers[i]
