@@ -155,9 +155,7 @@ func TestBPTree6432(t *testing.T) {
 
 func TestBPTree3232(t *testing.T) {
 	// Initialize tree here
-
-	//EX: newtree := InitializeTree() where InitializeTree returns your intialized tree
-	var testTree BPTree3232 = nil //replace nil with your newtree should compile if your tree struct properly defines the interface
+	var testTree BPTree3232 = NewBPTree()
 
 	// Do not modify code below except for adding debug logs
 	if testTree == nil {
